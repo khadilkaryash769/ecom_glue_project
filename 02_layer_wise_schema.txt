@@ -1,0 +1,274 @@
+
+1. Raw Layer Schema
+Raw keeps the source data in the format received from upstream systems.
+1.1 Raw Orders schema
+{
+  "order_id": "string",
+  "customer_id": "string",
+  "product_id": "string",
+  "order_date": "string",
+  "quantity": "integer",
+  "unit_price": "double",
+  "order_status": "string"
+}
+
+1.2 Raw Products schema
+{
+  "product_id": "string",
+  "product_name": "string",
+  "category": "string",
+  "brand": "string"
+}
+
+
+2. Bronze Layer Schema
+Bronze preserves the source structure almost as-is, but adds technical metadata useful for lineage, debugging, and audit.
+2.1 Bronze Orders schema
+{
+  "order_id": "string",
+  "customer_id": "string",
+  "product_id": "string",
+  "order_date": "string",
+  "quantity": "integer",
+  "unit_price": "double",
+  "order_status": "string",
+  "source_file_name": "string",
+  "ingestion_timestamp": "timestamp",
+  "load_date": "string",
+  "pipeline_run_id": "string"
+}
+
+2.2 Bronze Products schema
+{
+  "product_id": "string",
+  "product_name": "string",
+  "category": "string",
+  "brand": "string",
+  "source_file_name": "string",
+  "ingestion_timestamp": "timestamp",
+  "load_date": "string",
+  "pipeline_run_id": "string"
+}
+
+Why Bronze looks like this
+Bronze should:
+preserve source values
+avoid heavy transformations
+capture metadata about ingestion
+So here we do not deeply clean the data yet.
+
+3. Silver Layer Schema
+Now Silver will have only:
+one curated table
+one rejected table
+
+3.1 Silver Orders Curated schema
+This table includes:
+cleaned data
+standardized data
+derived columns
+product enrichment columns
+{
+  "order_id": "string",
+  "customer_id": "string",
+  "product_id": "string",
+  "product_name": "string",
+  "category": "string",
+  "brand": "string",
+  "order_timestamp": "timestamp",
+  "order_date": "date",
+  "quantity": "integer",
+  "unit_price": "double",
+  "order_amount": "double",
+  "order_status": "string",
+  "load_date": "string",
+  "pipeline_run_id": "string"
+}
+
+3.2 Meaning of each column in orders_curated
+Business/source columns
+order_id
+customer_id
+product_id
+
+Enrichment columns
+product_name
+category
+brand
+
+Standardized date/time columns
+order_timestamp → converted from raw string to timestamp
+order_date → extracted business date
+
+Cleaned numeric columns
+quantity
+unit_price
+
+Derived column
+order_amount = quantity * unit_price
+
+Standardized status
+order_status → usually lowercase like completed, pending, cancelled
+
+Technical columns
+load_date
+pipeline_run_id
+
+3.3 Silver Rejected Orders schema
+This is used to store invalid records rejected during Silver transformation.
+{
+  "raw_record": "string",
+  "rejection_reason": "string",
+  "source_file_name": "string",
+  "load_date": "string",
+  "pipeline_run_id": "string"
+}
+
+3.4 Meaning of each column in rejected_orders
+raw_record → full original row stored as JSON string
+rejection_reason → why the row failed validation
+source_file_name → which file it came from
+load_date → partition/date reference
+pipeline_run_id → audit tracking
+Example rejection reasons
+NULL_ORDER_ID
+INVALID_QUANTITY
+INVALID_UNIT_PRICE
+INVALID_ORDER_DATE
+
+4. Gold Layer Schema
+Gold contains business-ready aggregated tables.
+4.1 Gold Daily Product Sales schema
+{
+  "order_date": "date",
+  "product_id": "string",
+  "product_name": "string",
+  "category": "string",
+  "total_orders": "integer",
+  "total_quantity": "integer",
+  "total_sales": "double"
+}
+
+4.2 Meaning
+This table is useful for:
+daily reporting
+product-level analysis
+dashboarding
+sales trend analysis
+
+4.3 Gold Category Sales schema
+{
+  "order_date": "date",
+  "category": "string",
+  "total_orders": "integer",
+  "total_quantity": "integer",
+  "total_sales": "double"
+}
+
+4.4 Meaning
+This table is useful for:
+category-level summary
+management reporting
+comparing category performance
+
+5. Final layer-wise summary
+Raw
+raw/orders
+{
+  "order_id": "string",
+  "customer_id": "string",
+  "product_id": "string",
+  "order_date": "string",
+  "quantity": "integer",
+  "unit_price": "double",
+  "order_status": "string"
+}
+
+raw/products
+{
+  "product_id": "string",
+  "product_name": "string",
+  "category": "string",
+  "brand": "string"
+}
+
+
+Bronze
+bronze/orders
+{
+  "order_id": "string",
+  "customer_id": "string",
+  "product_id": "string",
+  "order_date": "string",
+  "quantity": "integer",
+  "unit_price": "double",
+  "order_status": "string",
+  "source_file_name": "string",
+  "ingestion_timestamp": "timestamp",
+  "load_date": "string",
+  "pipeline_run_id": "string"
+}
+
+bronze/products
+{
+  "product_id": "string",
+  "product_name": "string",
+  "category": "string",
+  "brand": "string",
+  "source_file_name": "string",
+  "ingestion_timestamp": "timestamp",
+  "load_date": "string",
+  "pipeline_run_id": "string"
+}
+
+
+Silver
+silver/orders_curated
+{
+  "order_id": "string",
+  "customer_id": "string",
+  "product_id": "string",
+  "product_name": "string",
+  "category": "string",
+  "brand": "string",
+  "order_timestamp": "timestamp",
+  "order_date": "date",
+  "quantity": "integer",
+  "unit_price": "double",
+  "order_amount": "double",
+  "order_status": "string",
+  "load_date": "string",
+  "pipeline_run_id": "string"
+}
+
+silver/rejected_orders
+{
+  "raw_record": "string",
+  "rejection_reason": "string",
+  "source_file_name": "string",
+  "load_date": "string",
+  "pipeline_run_id": "string"
+}
+
+
+Gold
+gold/daily_product_sales
+{
+  "order_date": "date",
+  "product_id": "string",
+  "product_name": "string",
+  "category": "string",
+  "total_orders": "integer",
+  "total_quantity": "integer",
+  "total_sales": "double"
+}
+
+gold/category_sales
+{
+  "order_date": "date",
+  "category": "string",
+  "total_orders": "integer",
+  "total_quantity": "integer",
+  "total_sales": "double"
+}
+

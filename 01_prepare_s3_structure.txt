@@ -1,0 +1,15 @@
+Create a bucket Later execute following command :
+
+for path in \
+raw/orders/load_date=2026-03-20/ \
+raw/orders/load_date=2026-03-21/ \
+raw/products/load_date=2026-03-20/ \
+bronze/orders/ \
+bronze/products/ \
+silver/orders_curated/ \
+silver/rejected_orders/ \
+gold/daily_product_sales/ \
+gold/category_sales/
+do
+  aws s3api put-object --bucket demo-medallion-etl-pipeline --key "$path"
+done
